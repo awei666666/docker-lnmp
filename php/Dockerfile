@@ -1,43 +1,25 @@
-FROM daocloud.io/library/php:7.3-fpm-alpine
-
+FROM php:7.4.11-fpm
 COPY config/php.ini /usr/local/etc/php
-
-#RUN apk add autoconf gcc \
-#    && wget https://github.com/phpredis/phpredis/archive/3.1.3.tar.gz \
-#    && tar -zxvf 3.1.3.tar.gz \
-#    && cd phpredis-3.1.3 \
-#    && /usr/local/bin/phpize \
-#    && ./configure --with-php-config=/usr/local/bin/php-config \
-#    && make \
-#    && make install \
-
-ENV SWOOLE_VERSION 4.5.2
-ENV PHPREDIS_VERSION 5.3.0
-ENV AMQP_VERSION 1.10.2
-
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
-
-RUN cd ~ \
-    && wget https://github.com/phpredis/phpredis/archive/$PHP_VERSION.tar.gz \
-    && tar -zxvf $PHP_VERSION.tar.gz \
-    && mkdir -p /usr/src/php/ext \
-    && mv phpredis-$PHP_VERSION /usr/src/php/ext/redis \
+COPY ./opt/composer  /usr/local/bin/composer
+COPY ./opt/amqp-1.10.2.tgz  /opt/amqp-1.10.2.tgz
+COPY ./opt/phpredis-5.3.0.tar.gz  /opt/phpredis-5.3.0.tar.gz
+COPY ./opt/swoole-src-4.5.2.tar.gz  /opt/swoole-src-4.5.2.tar.gz
+RUN apt-get update \
+    && apt-get  install -y apt-utils  libpng12*-dev vim  libmcrypt-dev libfreetype6-dev \
+    libpng-dev libjpeg-dev  libjpeg62-turbo-dev  wget libmcrypt-dev \
+    docker-php-ext-install  mcrypt
+    && docker-php-ext-install pdo_mysql mysqli pcntl gd mbstring   \  
+    && docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/  --with-png-dir=/usr/include --enable-gd-native-ttf 
+RUN  mkdir -p /usr/src/php/ext  &&  chmod +x  /usr/local/bin/composer \
+    && composer config -g repo.packagist composer https://mirrors.aliyun.com/composer/ \
+    && tar -zxvf  /opt/phpredis-5.3.0.tar.gz  \ 
+    && mv /opt/phpredis-5.3.0  /usr/src/php/ext/redis \
     && docker-php-ext-install redis \
-    && wget https://pecl.php.net/get/amqp-$AMQP_VERSION.tgz \
-    && tar -zxvf amqp-$AMQP_VERSION.tgz \
-    && mv amqp-$AMQP_VERSION /usr/src/php/ext/amqp \
-    && apk add rabbitmq-c-dev \
-    && docker-php-ext-install amqp \
-
-    && apk add libstdc++ libpng-dev \
-    && cd ~ \
-    && wget https://github.com/swoole/swoole-src/archive/v$SWOOLE_VERSION.tar.gz \
-    && tar -zxvf v$SWOOLE_VERSION.tar.gz \
     && mkdir -p /usr/src/php/ext \
-    && mv swoole-src-$SWOOLE_VERSION /usr/src/php/ext/swoole \
-    && docker-php-ext-install swoole \
-
-    && docker-php-ext-install pdo_mysql mysqli pcntl gd \
-
-    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin/ --filename=composer \
-    && composer config -g repo.packagist composer https://mirrors.aliyun.com/composer/
+    && tar -zxvf /opt/amqp-1.10.2.tgz \
+    && mv /opt/amqp-1.10.2  /usr/src/php/ext/amqp \
+    && apt-get install -y librabbitmq-dev \
+    && docker-php-ext-install amqp \
+    && mkdir -p /usr/src/php/ext \
+    && tar -zxvf /opt/swoole-src-4.5.2.tar.gz \
+    && mv swoole-src-4.5.2  /usr/src/php/ext/swoole && docker-php-ext-install swoole
